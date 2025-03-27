@@ -24,7 +24,40 @@ ALU alu_instance (
 );
 
 reg [7:0] state = 8'b00000000; // estado
-reg [6:0] opt; // guarda a opção
+
+// ===== wires =====
+wire [6:0] opt; // guarda a opção
+assign opt = data_in[6:0];
+wire [4:0] rd;
+assign rd  = data_in[11:7];
+wire [4:0] rs1;
+assign rs1 = data_in[19:15];
+wire [4:0] rs2;
+assign rs2 = data_in[24:20];
+
+// ===== Imm wires =====
+wire [11:0] immL;
+assign immL = data_in[31:20];
+wire [11:0] immS;
+assign immS = {data_in[31:25], data_in[11:7]};
+wire [31:0] immB;
+assign immB = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0};
+wire [31:0]  immJAL;
+assign immJAL = {{12{data_in[31]}}, data_in[19:12], data_in[20], data_in[30:21], 1'b0};
+
+
+/*RegisterFile register_file_instance(
+    .clk(clk),
+    .r1(rs1),
+    .r2(rs2),
+    .w(rd),
+    .data_in(rd),
+    .we(we),
+    .data_out1(r),
+    .data_out2(rs2)
+)*/
+
+
 reg [31:0] registers [0:31]; // registradores
 
 // ===== DEBUG VARIABLES =====
@@ -41,7 +74,7 @@ parameter SUB_1           = 8'b00000101;
 parameter LW_1            = 8'b00000110;
 parameter LW_2            = 8'b00000111;
 parameter LW_3            = 8'b00001000;
-parameter LW_4            = 8'b00001001;
+//parameter LW_4            = 8'b00001001;
 parameter SW_1            = 8'b00001010;
 parameter SW_2            = 8'b00001011;
 parameter SW_3            = 8'b00001100;
@@ -133,7 +166,6 @@ always @(posedge clk) begin
         state = DECODE;
       end
       DECODE: begin // ler decodifica a instrução
-        opt = data_in[6:0]; 
         if(print_decode)
           $display("decoding instruction %b (%d)", opt, opt);
         case(opt)
@@ -194,37 +226,27 @@ always @(posedge clk) begin
       // ===== Add/Sub =====
       ADDI_1: begin
         // rd = registers[data_in[19:15]];
-        // r1  = registers[data_in[11-7]];
         // imm = data_in[31:20];
         srcA = data_in[31:20]; //imm
-        srcB = registers[data_in[19:15]]; //r1
+        srcB = registers[rs1]; //r1
         aluControl = ALU_ADD;
         state = ALU_RESULT;
       end
       ADD_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_ADD;
         state = ALU_RESULT;
       end
       SUB_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_SUB;
         state = ALU_RESULT;
       end
       AND_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_AND;
         state = ALU_RESULT;
       end
@@ -232,8 +254,8 @@ always @(posedge clk) begin
         // rd = registers[data_in[11:7]]
         // r1 = registers[data_in[19:15]]
         // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_XOR;
         state = ALU_RESULT;
       end
@@ -241,33 +263,27 @@ always @(posedge clk) begin
         // rd = registers[data_in[11:7]]
         // r1 = registers[data_in[19:15]]
         // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_OR;
         state = ALU_RESULT;
       end
       SLL_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_LS;
         state = ALU_RESULT;
       end
       SRL_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_RS;
         state = ALU_RESULT;
       end
 
       ALU_RESULT: begin
-        if(data_in[11:7] != 0)
-          registers[data_in[11:7]] = aluResult;// rd
+        if(rd != 0)
+          registers[rd] = aluResult;
         state = FETCH;
         pc <= pc + 4;
       end
@@ -275,30 +291,22 @@ always @(posedge clk) begin
       // ===== LW =====
       LW_1: begin
         // offset = data_in[31:20]
-        // rd = registers[data_in[11-7]]
-        // r1 = registers[data_in[19-15]]
-        srcA = data_in[31:20];
-        srcB = registers[data_in[19:15]];
+        srcA = immL;
+        srcB = rs1;
         aluControl = ALU_ADD;
         
         state = LW_2;
       end
       LW_2: begin
-        temp_data_in = data_in;
-        srcA = aluResult; // FAÇO SHIFT NO LOAD
-        srcB = 2;
-        aluControl = ALU_LS;
-        state = LW_3;
-      end
-      LW_3: begin
         we = 0;
         address = aluResult;
-        state = LW_4;
+        state = LW_3;
+        temp_data_in = data_in;
       end
-      LW_4: begin
-        if(temp_data_in[11:7] != 0)
-          registers[temp_data_in[11:7]] = data_in;
-        $display("Loaded on register %d value %d from position", temp_data_in[11:7], data_in, aluResult[13:2]);
+      LW_3: begin
+        if(rd != 0)
+          registers[rd] = data_in;
+        $display("Loaded from position %d value %d to register %d", aluResult, data_in, rd);
         state = FETCH;
         pc <= pc + 4;
         address <= 32'h00000000;
@@ -306,11 +314,9 @@ always @(posedge clk) begin
 
       // ===== SW =====
       SW_1: begin
-        // offset = {data_in[31:25], data_in[11:7]}
-        // r1 = registers[data_in[19-15]]
-        // r2 = registers[data_in[24-20]]
-        srcA = {data_in[31:25], data_in[11:7]};
-        srcB = registers[data_in[19:15]];
+        // offset = {datas_in[31:25], data_in[11:7]}
+        srcA = immS;
+        srcB = rs1;
         aluControl = ALU_ADD;
         
         state = SW_2;
@@ -318,7 +324,7 @@ always @(posedge clk) begin
       SW_2: begin
         address = aluResult; // NÃO FAÇO SHIFT NO STORE
         $display("Storing on position %d value %d", aluResult, registers[data_in[24:20]]);
-        data_out = registers[data_in[24:20]];
+        data_out = registers[rs2];
         we = 1;
         state = SW_3;
       end
@@ -330,74 +336,58 @@ always @(posedge clk) begin
 
       // ===== BNE =====
       BNE_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_NEQ;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BEQ =====
       BEQ_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
         // r1     = registers[data_in[19:15]]
         // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1]; //r1
+        srcB = registers[rs2]; //r2
         aluControl = ALU_EQ;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BLT =====
       BLT_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_LT;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BLE =====
       BLE_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_LTE;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BRT =====
       BGT_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_GT;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BRE =====
       BGE_1: begin
-        // offset = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0}
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[data_in[19:15]]; //r1
-        srcB = registers[data_in[24:20]]; //r2
+        srcA = registers[rs1];
+        srcB = registers[rs2];
         aluControl = ALU_GTE;
         state = BRANCH_RESULT_1;
       end
 
       BRANCH_RESULT_1: begin
         if(aluResult)begin
-          srcA = {{20{data_in[31]}}, data_in[7], data_in[30:25], data_in[11:8], 1'b0};
-          srcB = pc;
+          srcA = pc;
+          srcB = immB;
           aluControl = ALU_ADD;
           state = BRANCH_RESULT_2;
         end else begin
@@ -414,10 +404,10 @@ always @(posedge clk) begin
       JAL_1: begin
         // offset = {{20{data_in[31]}}, data_in[31], data_in[19:12], data_in[20], data_in[30:21], 0'b0}
         // rd     = registers[data_in[11:7]]
-        srcA = {{20{data_in[31]}}, data_in[31], data_in[19:12], data_in[20], data_in[30:21], 1'b0}; //r1
+        srcA = immJAL;
         srcB = pc; 
         aluControl = ALU_ADD;
-        registers[data_in[11:7]] = pc;
+        registers[rd] = pc;
         state = JAL_2;
       end
       JAL_2: begin
@@ -441,60 +431,6 @@ initial begin
   for (i = 0; i < 32; i = i + 1) begin
     registers[i] = 32'h00000000;
   end
-end
-
-endmodule;
-
-// ===== ALU =====
-module ALU(
-  input [3:0] aluControl,
-  input [31:0] srcA, 
-  input [31:0] srcB,
-  output reg [31:0] aluResult
-);
-
-// ===== constantes de aluControl =====
-parameter ADD = 4'b0000;
-parameter SUB = 4'b0001;
-parameter MUL = 4'b0010; // NOT NEEDED FOR CURRENT INSTRUCTION SET
-parameter DIV = 4'b0011; // NOT NEEDED FOR CURRENT INSTRUCTION SET
-parameter AND = 4'b0100;
-parameter OR  = 4'b0101;
-parameter XOR = 4'b0110;
-parameter LS  = 4'b0111;
-parameter RS  = 4'b1000;
-parameter EQ  = 4'b1001;
-parameter NEQ = 4'b1010;
-parameter LT  = 4'b1011;
-parameter LTE = 4'b1100;
-parameter GT  = 4'b1101;
-parameter GTE = 4'b1110;
-
-reg print_alu_resp = 1;
-
-always @(*) begin
-  case(aluControl)
-    ADD: aluResult = srcA +  srcB; // Soma
-    SUB: aluResult = srcA -  srcB; // Subtração
-    MUL: aluResult = srcA *  srcB;
-    DIV: aluResult = srcA /  srcB;
-    AND: aluResult = srcA &  srcB;
-    OR : aluResult = srcA |  srcB;
-    XOR: aluResult = srcA ^  srcB;
-    LS : aluResult = srcA << srcB;
-    RS : aluResult = srcA >> srcB;
-    EQ : aluResult = srcA == srcB;
-    NEQ: aluResult = srcA != srcB;
-    LT : aluResult = srcA <  srcB;
-    LTE: aluResult = srcA <= srcB;
-    GT : aluResult = srcA >  srcB;
-    GTE: aluResult = srcA >= srcB;
-    
-    default: aluResult = 32'h00000000; // Operação inválida
-  endcase
-  if(print_alu_resp)
-    $display("ALU: %d(srcA) %h %d(srcB) = %d(aluResult)", $signed(srcA), aluControl, $signed(srcB), $signed(aluResult));
-
 end
 
 endmodule;
