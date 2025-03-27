@@ -13,7 +13,7 @@ assign DEBUG_512 = mem[512];
 integer i;
 always @(address or data_in or we) begin
   if (we) begin
-    mem[address] = data_in;
+    mem[address[13:2]] = data_in;
   end
   data_out = mem[address[13:2]]; 
   // le do 13 ao 2, ignora os 2 primeiros do address pois a memória só le palavras inteiras
