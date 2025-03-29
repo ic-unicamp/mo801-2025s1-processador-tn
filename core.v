@@ -23,7 +23,8 @@ ALU alu_instance (
 );
 
 // ===== wires =====
-wire [6:0] opt; // guarda a opção
+// Rodolfo: O que é opt? Temos um sinal de opcode, nenhum sinal de opção
+wire [6:0] opt; // guarda a opção 
 assign opt = data_in[6:0];
 wire [4:0] rd;
 assign rd  = data_in[11:7];
@@ -163,7 +164,9 @@ parameter ALU_GTE = 4'b1110;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
-
+    // Rodolfo: Falta definir o valor inicial da sua máquina de estado
+    // Também notei que você não tem o valor inicial do PC definido.
+    // state = FETCH;
   end else begin 
     // ===== Unidade de controle =====
     if (print_state) begin //printa o estado
@@ -351,7 +354,12 @@ always @(posedge clk) begin
 end
 
 always @(*) begin
-if (resetn == 1'b0) begin
+  // Rodolfo: Não tem essa parte de reset aqui. Reset vem de outro lado. 
+  // Os valores default precisam ser definidos. Você está deixando os sinais todos sem default. 
+  // Na prática, remova a linha abaixo e o end else begin e seu código deve funcionar.
+  // Lembre-se que seu código always parece sempre com um while true. Nesse caso, os valores de uma interação precisam 
+  // ser definidos sempre na mesma interação e você não está fazendo aqui.
+if (resetn == 1'b0) begin 
     we         = 1'b0;
     address    = 32'h00000000;
     data_out   = 32'h00000000;
