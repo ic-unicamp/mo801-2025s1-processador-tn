@@ -23,7 +23,7 @@ parameter LTE = 4'b1100;
 parameter GT  = 4'b1101;
 parameter GTE = 4'b1110;
 
-reg print_alu_resp = 1;
+reg print_alu_resp = 1'b0;
 
 always @(*) begin
   case(aluControl)

@@ -7,14 +7,26 @@ module RegisterFile(
     input we,
     output reg [31:0] data_out1,
     output reg [31:0] data_out2
-)
+);
+parameter print_reg_write = 1'b0;
 
+reg [31:0] registradores[0:31];
 always @(posedge clk)
 begin
-    if (we)
+    if (we && w != 0) begin
+        if(print_reg_write)
+            $display("Writing %d on register %d", data_in, w);
         registradores[w] <= data_in;
+    end
     data_out1 = registradores[r1];
     data_out2 = registradores[r2];
+end
+
+integer i;
+initial begin
+  for (i = 0; i < 32; i = i + 1) begin
+    registradores[i] = 32'h00000000;
+  end
 end
 
 endmodule

@@ -13,7 +13,6 @@ reg [31:0] srcA, srcB;
 
 // ===== Temporários para acesso a memória(LW) =====
 reg [31:0] pc = 0;
-reg [31:0] temp_data_in; 
 
 // ===== Instância da ALU =====
 ALU alu_instance (
@@ -22,8 +21,6 @@ ALU alu_instance (
   .srcB(srcB),
   .aluResult(aluResult)
 );
-
-reg [7:0] state = 8'b00000000; // estado
 
 // ===== wires =====
 wire [6:0] opt; // guarda a opção
@@ -46,19 +43,33 @@ wire [31:0]  immJAL;
 assign immJAL = {{12{data_in[31]}}, data_in[19:12], data_in[20], data_in[30:21], 1'b0};
 
 
-/*RegisterFile register_file_instance(
+// ===== Register wires =====
+wire [4:0] reg_read_1;
+assign reg_read_1 = rs1;
+wire [4:0] reg_read_2;
+assign reg_read_2 = rs2;
+
+// ===== Register inputs =====
+reg [31:0] reg_in; 
+reg [4:0]  reg_dest;
+reg reg_we;
+
+// ===== Register outputs =====
+wire [31:0] reg_out_1;
+wire [31:0] reg_out_2;
+
+RegisterFile register_file_instance(
     .clk(clk),
-    .r1(rs1),
-    .r2(rs2),
-    .w(rd),
-    .data_in(rd),
-    .we(we),
-    .data_out1(r),
-    .data_out2(rs2)
-)*/
+    .r1(reg_read_1),
+    .r2(reg_read_2),
+    .w(reg_dest),
+    .data_in(reg_in),
+    .we(reg_we),
+    .data_out1(reg_out_1),
+    .data_out2(reg_out_2)
+);
 
 
-reg [31:0] registers [0:31]; // registradores
 
 // ===== DEBUG VARIABLES =====
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
@@ -93,7 +104,9 @@ parameter JAL_1           = 8'b00011000;
 parameter JAL_2           = 8'b00011001;
 parameter SLL_1           = 8'b00011010;
 parameter SRL_1           = 8'b00011011;
+parameter BRANCH_RESULT_3 = 8'b00011100;
 
+reg [7:0] state = FETCH; // estado
 
 // ===== Constantes de comando =====
 parameter ADDI = 7'b0010011;
@@ -150,28 +163,23 @@ parameter ALU_GTE = 4'b1110;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
-    address <= 32'h00000000;
+
   end else begin 
     // ===== Unidade de controle =====
     if (print_state) begin //printa o estado
       $display("State: %h", state);
     end
 
-    data_out = 32'h00000000; // zera data_out para que pare de dar data para fora
-    
     case(state) // máquina de estado
       FETCH: begin // ler instrução
-        we = 0; // faz a memória ler no clock
-        address <= pc;
         state = DECODE;
       end
       DECODE: begin // ler decodifica a instrução
         if(print_decode)
-          $display("decoding instruction %b (%d)", opt, opt);
+          $display("decoding instruction %b (%d) address: %d", opt, opt, address);
         case(opt)
           NOP: begin
             state = FETCH;
-            pc <= pc + 4;
           end
           ADDI: begin
             state = ADDI_1;
@@ -225,200 +233,116 @@ always @(posedge clk) begin
 
       // ===== Add/Sub =====
       ADDI_1: begin
-        // rd = registers[data_in[19:15]];
-        // imm = data_in[31:20];
-        srcA = data_in[31:20]; //imm
-        srcB = registers[rs1]; //r1
-        aluControl = ALU_ADD;
         state = ALU_RESULT;
       end
       ADD_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_ADD;
         state = ALU_RESULT;
       end
       SUB_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_SUB;
         state = ALU_RESULT;
       end
       AND_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_AND;
         state = ALU_RESULT;
       end
       XOR_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_XOR;
         state = ALU_RESULT;
       end
       OR_1: begin
-        // rd = registers[data_in[11:7]]
-        // r1 = registers[data_in[19:15]]
-        // r2 = registers[data_in[24:20]]
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_OR;
         state = ALU_RESULT;
       end
       SLL_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_LS;
         state = ALU_RESULT;
       end
       SRL_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_RS;
         state = ALU_RESULT;
       end
 
       ALU_RESULT: begin
-        if(rd != 0)
-          registers[rd] = aluResult;
         state = FETCH;
-        pc <= pc + 4;
+        pc = pc + 4;
       end
 
       // ===== LW =====
       LW_1: begin
-        // offset = data_in[31:20]
-        srcA = immL;
-        srcB = rs1;
-        aluControl = ALU_ADD;
-        
         state = LW_2;
       end
       LW_2: begin
-        we = 0;
-        address = aluResult;
         state = LW_3;
-        temp_data_in = data_in;
       end
       LW_3: begin
-        if(rd != 0)
-          registers[rd] = data_in;
-        $display("Loaded from position %d value %d to register %d", aluResult, data_in, rd);
         state = FETCH;
-        pc <= pc + 4;
-        address <= 32'h00000000;
+        pc = pc + 4;
       end
 
       // ===== SW =====
       SW_1: begin
-        // offset = {datas_in[31:25], data_in[11:7]}
-        srcA = immS;
-        srcB = rs1;
-        aluControl = ALU_ADD;
-        
         state = SW_2;
       end
       SW_2: begin
-        address = aluResult; // NÃO FAÇO SHIFT NO STORE
-        $display("Storing on position %d value %d", aluResult, registers[data_in[24:20]]);
-        data_out = registers[rs2];
-        we = 1;
         state = SW_3;
       end
       SW_3: begin
-        we = 0;
         state = FETCH;
-        pc <= pc + 4; // devolve o PC
+        pc = pc + 4;
       end
 
       // ===== BNE =====
       BNE_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_NEQ;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BEQ =====
       BEQ_1: begin
-        // r1     = registers[data_in[19:15]]
-        // r2     = registers[data_in[24:20]]
-        srcA = registers[rs1]; //r1
-        srcB = registers[rs2]; //r2
-        aluControl = ALU_EQ;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BLT =====
       BLT_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_LT;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BLE =====
       BLE_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_LTE;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BRT =====
       BGT_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_GT;
         state = BRANCH_RESULT_1;
       end
 
       // ===== BRE =====
       BGE_1: begin
-        srcA = registers[rs1];
-        srcB = registers[rs2];
-        aluControl = ALU_GTE;
         state = BRANCH_RESULT_1;
       end
 
       BRANCH_RESULT_1: begin
         if(aluResult)begin
-          srcA = pc;
-          srcB = immB;
-          aluControl = ALU_ADD;
           state = BRANCH_RESULT_2;
         end else begin
-          pc <= pc + 4;
-          state = FETCH; 
+          state = FETCH;
+          pc    = pc + 4;
         end
       end
       BRANCH_RESULT_2: begin
-        pc <= aluResult;
+        state = BRANCH_RESULT_3;
+      end
+      BRANCH_RESULT_3: begin
         state = FETCH;
+        pc = aluResult;
       end
 
       // ===== JAL =====
       JAL_1: begin
-        // offset = {{20{data_in[31]}}, data_in[31], data_in[19:12], data_in[20], data_in[30:21], 0'b0}
-        // rd     = registers[data_in[11:7]]
-        srcA = immJAL;
-        srcB = pc; 
-        aluControl = ALU_ADD;
-        registers[rd] = pc;
         state = JAL_2;
       end
       JAL_2: begin
-        pc <= aluResult;
         state = FETCH;
       end
 
       default: begin
         // Estado inválido (nunca deve acontecer)
-        pc <= pc + 4;
-        state <= FETCH;
+        state = FETCH;
         $display("ERROR: DEFAULT CORE STATE REACHED");
         $finish;
       end
@@ -426,10 +350,191 @@ always @(posedge clk) begin
   end
 end
 
-integer i;
-initial begin
-  for (i = 0; i < 32; i = i + 1) begin
-    registers[i] = 32'h00000000;
+always @(*) begin
+if (resetn == 1'b0) begin
+    we         = 1'b0;
+    address    = 32'h00000000;
+    data_out   = 32'h00000000;
+    srcA       = 32'h00000000;
+    srcB       = 32'h00000000;
+    aluControl = 32'h00000000;
+    reg_we     = 1'b0;
+    reg_in     = 32'h00000000;
+  end else begin 
+    // ===== Unidade de controle OUT =====
+    case(state) // máquina de estado
+      FETCH: begin // ler instrução
+        we = 0; // faz a memória ler no clock
+        reg_we  = 0; // remove a opção de escrita dos registradores
+        address = pc;
+      end
+      DECODE: begin // ler decodifica a instrução
+        
+      end
+
+      // ===== Add/Sub =====
+      ADDI_1: begin
+        srcA = data_in[31:20]; //imm
+        srcB = reg_out_1;
+        aluControl = ALU_ADD;
+      end
+      ADD_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_ADD;
+      end
+      SUB_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_SUB;
+      end
+      AND_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_AND;
+      end
+      XOR_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_1;
+        aluControl = ALU_XOR;
+      end
+      OR_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_OR;
+      end
+      SLL_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_LS;
+      end
+      SRL_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_RS;
+      end
+
+      ALU_RESULT: begin
+        reg_in = aluResult;
+        reg_dest = rd;
+        reg_we = 1;
+      end
+
+      // ===== LW =====
+      LW_1: begin
+        srcA = immL;
+        srcB = rs1;
+        aluControl = ALU_ADD;
+      end
+      LW_2: begin
+        we = 0;
+        reg_dest = rd;
+        address  = aluResult;
+      end
+      LW_3: begin
+        reg_in = data_in;
+        reg_we = 1;
+        // executa 3x por algum motivo
+      end
+
+      // ===== SW =====
+      SW_1: begin
+        srcA = immS;
+        srcB = reg_out_1;
+        aluControl = ALU_ADD; // aluResult = immS + rs1
+        //$display("address: %b %d", address, address);
+        //$display("storing r[%d]: %d", reg_read_2, reg_out_2);
+        data_out = reg_out_2;
+      end
+      SW_2: begin
+        address = aluResult;
+        we = 1;// mem[aluResult] = rs2
+      end
+      SW_3: begin
+        we = 0;
+      end
+
+      // ===== BNE =====
+      BNE_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_NEQ;
+      end
+
+      // ===== BEQ =====
+      BEQ_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_EQ;
+      end
+
+      // ===== BLT =====
+      BLT_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_LT;
+      end
+
+      // ===== BLE =====
+      BLE_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_LTE;
+      end
+
+      // ===== BRT =====
+      BGT_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_GT;
+      end
+
+      // ===== BRE =====
+      BGE_1: begin
+        srcA = reg_out_1;
+        srcB = reg_out_2;
+        aluControl = ALU_GTE;
+      end
+
+      BRANCH_RESULT_1: begin
+        
+      end
+      BRANCH_RESULT_2: begin
+        srcA = pc;
+        srcB = immB;
+        aluControl = ALU_ADD;
+      end
+      BRANCH_RESULT_3: begin
+
+      end
+
+      // ===== JAL =====
+      JAL_1: begin
+        srcA = immJAL;
+        srcB = pc; 
+        aluControl = ALU_ADD;
+        reg_in = pc;
+        reg_dest = rd;
+        reg_we = 1;
+        //registers[rd] = pc;
+      end
+      JAL_2: begin
+        pc = aluResult;
+        reg_we = 0;
+      end
+
+      default: begin
+        // Estado inválido (nunca deve acontecer)
+        address    = 32'h00000000;
+        data_out   = 32'h00000000;
+        srcA       = 32'h00000000;
+        srcB       = 32'h00000000;
+        aluControl = 32'h00000000;
+        reg_we     = 1'b0;
+        reg_in     = 32'h00000000;
+        $finish;
+      end
+    endcase
   end
 end
 
