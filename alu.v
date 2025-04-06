@@ -12,7 +12,7 @@ parameter SUB = 4'b0001;
 parameter AND = 4'b0010;
 parameter RA  = 4'b0011;
 parameter OR  = 4'b0100;
-parameter RSS = 4'b0101
+parameter RSS = 4'b0101;
 parameter XOR = 4'b0110;
 parameter LS  = 4'b0111;
 parameter RS  = 4'b0100;
@@ -30,8 +30,6 @@ always @(*) begin
   case(aluControl)
     ADD: aluResult = srcA +  srcB; // Soma
     SUB: aluResult = srcA -  srcB; // Subtração
-    MUL: aluResult = srcA *  srcB;
-    DIV: aluResult = srcA /  srcB;
     AND: aluResult = srcA &  srcB;
     OR : aluResult = srcA |  srcB;
     XOR: aluResult = srcA ^  srcB;
