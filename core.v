@@ -7,16 +7,11 @@ module core( // modulo de um core
   output reg we // write enable
 );
 
-reg lw_rd_reg;
-reg [31:0] data_in_reg = 31'b00000000;
 // ===== Variáveis da alu =====
 wire [31:0] alu_true_result;
 reg [31:0] aluResult;
 reg [3:0] aluControl;
 reg [31:0] srcA, srcB;
-
-// ===== Temporários para acesso a memória(LW) =====
-reg [31:0] pc = 0;
 
 // ===== Instância da ALU =====
 ALU alu_instance (
@@ -25,37 +20,6 @@ ALU alu_instance (
   .srcB(srcB),
   .aluResult(alu_true_result)
 );
-
-// ===== wires =====
-wire [6:0] opcode; // guarda a opção 
-assign opcode = data_in_reg[6:0];
-wire [4:0] rd;
-assign rd  = data_in_reg[11:7];
-wire [4:0] rs1;
-assign rs1 = data_in_reg[19:15];
-wire [4:0] rs2;
-assign rs2 = data_in_reg[24:20];
-wire [4:0] shamt;
-assign shamt = data_in_reg[24:20];
-
-wire [31:0] sra_return;
-assign sra_return  = {{5{data_in_reg[31]}}, data_in_reg[31:5]};
-wire [31:0] srai_return;
-assign srai_return = {shamt[31:27], aluResult[26:0]};
-
-// ===== Imm wires =====
-wire [11:0] immL;
-assign immL = data_in_reg[31:20];
-wire [11:0] immADDI;
-assign immADDI = data_in_reg[31:20];
-wire [11:0] immS;
-assign immS = {data_in_reg[31:25], data_in_reg[11:7]};
-wire [31:0] immB;
-assign immB = {{20{data_in_reg[31]}}, data_in_reg[7], data_in_reg[30:25], data_in_reg[11:8], 1'b0};
-wire [31:0]  immJAL;
-assign immJAL = {{12{data_in_reg[31]}}, data_in_reg[19:12], data_in_reg[20], data_in_reg[30:21], 1'b0};
-wire [31:0] immLUI;
-assign immLUI = {{data_in_reg[31:12]}, 12'b000000000000};
 
 // ===== Register wires =====
 wire [4:0] reg_read_1;
@@ -83,13 +47,7 @@ RegisterFile register_file_instance(
     .data_out2(reg_out_2)
 );
 
-
-
-// ===== DEBUG VARIABLES =====
-reg print_state  = 1'b1; // variável para saber se deveria-se printar o estado
-reg print_decode = 1'b1;
-reg print_pc     = 1'b1;
-
+reg [7:0] state = FETCH; // estado
 // ===== Constantes de estado =====
 parameter FETCH           = 8'b00000000;
 parameter DECODE          = 8'b00000001;
@@ -130,56 +88,35 @@ parameter ORI_1           = 8'b00100110;
 parameter ANDI_1          = 8'b00100111;
 parameter SRA_1           = 8'b00101000;
 parameter SRAI_1          = 8'b00101001;
+parameter JALR_1          = 8'b00101010; 
+parameter JALR_2          = 8'b00101011; 
+parameter LB_1            = 8'b00101100; 
+parameter LB_2            = 8'b00101101; 
+parameter LB_3            = 8'b00101110; 
+parameter LH_1            = 8'b00101111; 
+parameter LH_2            = 8'b00110000; 
+parameter LH_3            = 8'b00110001; 
+parameter LHU_1           = 8'b00110010; 
+parameter LHU_2           = 8'b00110011; 
+parameter LHU_3           = 8'b00110100; 
+parameter LBU_1           = 8'b00110101; 
+parameter LBU_2           = 8'b00110110; 
+parameter LBU_3           = 8'b00110111; 
 
 
-reg [7:0] state = FETCH; // estado
-
-// ===== Constantes de comando =====
-parameter ADDI = 7'b0010011;
-// ADDI rd, r1, imm
-// rd = r1 + imm 
-// ADDI_1 => ALU_RESULT
+// ===== Constantes de opcode =====
+parameter ADDI     = 7'b0010011;
 parameter ADD_SUB  = 7'b0110011;
-// ADD rd, r1, r2
-// rd = r1 + r2
-// ADD_1 => ALU_RESULT
-// SUB rd, r1, r2
-// rd = r1 - r2
-// SUB_1 => ALU_RESULT
-parameter SW   = 7'b0100011;
-// SW rs2,offset(rs1)
-// mem[r1 + offset] = r2
-// SW_1 => SW_2 => SW_3
-parameter LW   = 7'b0000011;
-// LW rd,offset(rs1)
-// rd = M[offset + rs1]
-// LW_1 => LW_2 => LW_3
+parameter SW       = 7'b0100011;
+parameter LW       = 7'b0000011;
 parameter BEQ_BNE  = 7'b1100011;
-// BEQ r1, r2, offset
-// if(r1 == r2) pc += offset
-// BNE r1, r2, offset
-// if(r1 != r2) pc += offset
 parameter NOP      = 7'b1111111;
-//No op
 parameter JAL      = 7'b1101111;
-// JAL r1, offset
-// r1 = pc; pc = pc + offset
 parameter SLL      = 7'b0110011;
-// SLL rd, r1, r2
-// rd = r1 << r2
-// SRL rd, r1, r2
-// rd = r1 >> r2
 parameter LUI      = 7'b0110111;
-// LUI rd, imm
-// rd = imm << 12
 parameter AUIPC    = 7'b0010111;
-// AUIPC rd, imm
-// rd = pc + imm[31:12] << 12;
 parameter SLT      = 7'b0110011;
-// SLT rd, rs1, rs2
-// rd = rs1 <s rs2
-// SLTU rd, rs1, rs2
-// rd = rs1 <u rs2
+parameter JALR     = 7'b1100111;
 
 // ===== Constantes de controle da alu =====
 
@@ -188,16 +125,61 @@ parameter ALU_SUB = 4'b0001;
 parameter ALU_AND = 4'b0010;
 parameter ALU_RA  = 4'b0011;
 parameter ALU_OR  = 4'b0100;
+parameter ALU_RSS = 4'b0101;
 parameter ALU_XOR = 4'b0110;
 parameter ALU_LS  = 4'b0111;
-parameter ALU_RS  = 4'b0100;
-parameter ALU_EQ  = 4'b0101;
+parameter ALU_RS  = 4'b1000;
+parameter ALU_EQ  = 4'b1001;
 parameter ALU_NEQ = 4'b1010;
 parameter ALU_LT  = 4'b1011;
 parameter ALU_LTS = 4'b1100;
 parameter ALU_LTE = 4'b1101;
 parameter ALU_GT  = 4'b1110;
 parameter ALU_GTE = 4'b1111;
+
+// ===== wires =====
+wire [6:0] opcode; // guarda a opção 
+assign opcode = data_in_reg[6:0];
+wire [4:0] rd;
+assign rd  = data_in_reg[11:7];
+wire [4:0] rs1;
+assign rs1 = data_in_reg[19:15];
+wire [4:0] rs2;
+assign rs2 = data_in_reg[24:20];
+wire [4:0] shamt;
+assign shamt = data_in_reg[24:20];
+
+wire [31:0] sra_return;
+assign sra_return  = {{5{data_in_reg[31]}}, data_in_reg[31:5]};
+wire [31:0] srai_return;
+assign srai_return = {shamt[31:27], aluResult[26:0]};
+
+// ===== Imm wires =====
+wire [11:0] immL;
+assign immL = data_in_reg[31:20];
+wire [11:0] immADDI;
+assign immADDI = data_in_reg[31:20];
+wire [11:0] immS;
+assign immS = {data_in_reg[31:25], data_in_reg[11:7]};
+wire [31:0] immB;
+assign immB = {{20{data_in_reg[31]}}, data_in_reg[7], data_in_reg[30:25], data_in_reg[11:8], 1'b0};
+wire [31:0]  immJAL;
+assign immJAL = {{12{data_in_reg[31]}}, data_in_reg[19:12], data_in_reg[20], data_in_reg[30:21], 1'b0};
+wire [31:0] immLUI;
+assign immLUI = {{data_in_reg[31:12]}, 12'b000000000000};
+wire [11:0] offset;
+assign offset = data_in_reg[31:20];
+
+// ===== Temporários =====
+reg [31:0] pc = 0;
+reg [4:0] lw_rd_reg;
+reg [31:0] data_in_reg = 31'b00000000;
+reg [1:0] lb_memory_address = 2'b00;
+reg [4:0] lb_rd;
+// ===== DEBUG VARIABLES =====
+reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
+reg print_decode = 1'b0;
+reg print_pc     = 1'b0;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
@@ -231,47 +213,46 @@ always @(posedge clk) begin
               3'b100: state =  XORI_1;
               3'b010: state =  SLTI_1;
               3'b010: state = SLTUI_1;
-              3'b101: begin
-                if(data_in[30] == 0)
-                  state =  SRLI_1;
-                else
-                  state =  SRAI_1;
-              end
+              3'b101: 
+                if(data_in[30] == 0) state =  SRLI_1;
+                else state =  SRAI_1;
               3'b110: state =   ORI_1;
               3'b111: state =  ANDI_1;
             endcase 
           ADD_SUB: begin
             case(data_in[14:12])
-              3'b000: if( data_in[30]) 
-                  state = SUB_1;
-                else 
-                  state = ADD_1;
+              3'b000: 
+                if(data_in[30]) state = SUB_1;
+                else state = ADD_1;
               3'b001: state =  SLL_1;
               3'b100: state =  XOR_1;
               3'b010: state =  SLT_1;
-              3'b010: begin
-                state = SLTU_1;
-                $display("SLTU");
-              end
-              3'b101: begin
-                if(data_in[30] == 0)
-                  state =  SRL_1;
-                else
-                  state =  SRA_1;
-              end
+              3'b010: state = SLTU_1;
+              3'b101: 
+                if(data_in[30] == 0) state =  SRL_1;
+                else state =  SRA_1;
               3'b110: state =   OR_1;
               3'b111: state =  AND_1;
             endcase
           end
+
           SW: state = SW_1;
-          LW: state = LW_1;
-          BEQ_BNE: 
-            if(data_in[12])
-              state = BNE_1;
-            else
-              state = BEQ_1;
-          JAL: state   = JAL_1;
           LUI: state   = LUI_1;
+          BEQ_BNE: 
+            if(data_in[12]) state = BNE_1;
+            else state = BEQ_1;
+          JAL: state   = JAL_1;
+          JALR:state   = JALR_1;
+
+          LW:
+            case (data_in[14:12])
+              3'b000: state = LB_1;
+              3'b001: state = LH_1;
+              3'b010: state = LW_1;
+              3'b100: state = LBU_1;
+              3'b101: state = LHU_1;
+
+            endcase
           AUIPC: state = AUIPC_1;
           default: begin
             $display("ERROR: NOT SUPPORTED INSTRUCTION");
@@ -311,6 +292,44 @@ always @(posedge clk) begin
         pc = pc + 4;
       end
 
+      LB_1: begin
+        state = LB_2;
+        lb_rd = rd;
+      end
+      LB_2: state = LB_3;
+      LB_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+      LH_1: begin
+        state = LH_2;
+        lb_rd = rd;
+      end
+      LH_2: state = LH_3;
+      LH_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+      LBU_1: begin
+        state = LBU_2;
+        lb_rd = rd;
+      end
+      LBU_2: state = LBU_3;
+      LBU_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+      LHU_1: begin
+        state = LHU_2;
+        lb_rd = rd;
+      end
+      LHU_2: state = LHU_3;
+      LHU_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+
+
       // ===== SW =====
       SW_1: state = SW_2;
       SW_2: state = SW_3;
@@ -344,6 +363,13 @@ always @(posedge clk) begin
       JAL_2: begin
         pc = alu_true_result;
 
+        state = FETCH;
+      end
+
+      JALR_1: begin
+        state = JALR_2;
+      end
+      JALR_2: begin
         state = FETCH;
       end
 
@@ -492,6 +518,52 @@ always @(*) begin
       // executa 3x por algum motivo
     end
 
+    LH_1, LB_1, LHU_1: begin
+      srcA = offset;
+      srcB = reg_out_1;
+      aluControl = ALU_ADD;
+    end
+    LH_2, LB_2, LHU_2: begin
+      address = aluResult;
+      lb_memory_address = aluResult[1:0];
+    end
+    LB_3: begin
+      reg_dest = lb_rd;
+      reg_we = 1;
+      case (lb_memory_address)
+        2'b00: reg_in = {{24{data_in_reg[7]}}, data_in_reg[7:0]};
+        2'b01: reg_in = {{24{data_in_reg[7]}}, data_in_reg[15:7]};
+        2'b10: reg_in = {{24{data_in_reg[7]}}, data_in_reg[23:16]};
+        2'b11: reg_in = {{24{data_in_reg[7]}}, data_in_reg[31:24]};
+      endcase
+    end
+    LBU_3: begin
+      reg_dest = lb_rd;
+      reg_we = 1;
+      case (lb_memory_address)
+        2'b00: reg_in = data_in_reg[7:0];
+        2'b01: reg_in = data_in_reg[15:8];
+        2'b10: reg_in = data_in_reg[23:16];
+        2'b11: reg_in = data_in_reg[31:24];
+      endcase
+    end
+    LH_3: begin
+      reg_dest = lb_rd;
+      reg_we = 1;
+      if(lb_memory_address[1] == 1'b0)
+        reg_in = {{16{data_in_reg[7]}}, data_in_reg[15:0]};
+      else
+        reg_in = {{16{data_in_reg[7]}}, data_in_reg[31:16]};
+    end
+    LHU_3: begin
+      reg_dest = lb_rd;
+      reg_we = 1;
+      if(lb_memory_address[1] == 1'b0)
+        reg_in = data_in_reg[15:0];
+      else
+        reg_in = data_in_reg[31:16];
+    end
+
     LUI_1: begin
       reg_dest = rd;
       reg_in   = immLUI;
@@ -565,7 +637,20 @@ always @(*) begin
       //registers[rd] = pc;
     end
     JAL_2: begin
-      reg_we = 0;
+    end
+
+    JALR_1: begin
+      srcA = pc;
+      srcB = 4;
+      aluControl = ALU_ADD;
+    end
+
+    JALR_2: begin
+      reg_in = aluResult;
+      reg_dest = rd;
+      reg_we = 1;
+      srcA = offset;
+      srcB = pc;
     end
   endcase
 end

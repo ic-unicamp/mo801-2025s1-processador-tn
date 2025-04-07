@@ -15,8 +15,8 @@ parameter OR  = 4'b0100;
 parameter RSS = 4'b0101;
 parameter XOR = 4'b0110;
 parameter LS  = 4'b0111;
-parameter RS  = 4'b0100;
-parameter EQ  = 4'b0101;
+parameter RS  = 4'b1000;
+parameter EQ  = 4'b1001;
 parameter NEQ = 4'b1010;
 parameter LT  = 4'b1011;
 parameter LTS = 4'b1100;
@@ -24,7 +24,7 @@ parameter LTE = 4'b1101;
 parameter GT  = 4'b1110;
 parameter GTE = 4'b1111;
 
-reg print_alu_resp = 1'b0;
+reg print_alu_resp = 1'b1;
 
 always @(*) begin
   case(aluControl)
