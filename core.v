@@ -101,7 +101,13 @@ parameter LHU_2           = 8'b00110011;
 parameter LHU_3           = 8'b00110100; 
 parameter LBU_1           = 8'b00110101; 
 parameter LBU_2           = 8'b00110110; 
-parameter LBU_3           = 8'b00110111; 
+parameter LBU_3           = 8'b00110111;
+parameter SB_1            = 8'b00111000;
+parameter SB_2            = 8'b00111001;
+parameter SB_3            = 8'b00111010;
+parameter SH_1            = 8'b00111011;
+parameter SH_2            = 8'b00111100;
+parameter SH_3            = 8'b00111101;
 
 
 // ===== Constantes de opcode =====
@@ -338,6 +344,25 @@ always @(posedge clk) begin
         pc = pc + 4;
       end
 
+      SB_1: begin
+        state = SB_2;
+        lb_memory_address = aluResult[1:0];
+      end
+      SB_2: state = SB_3;
+      SB_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+      SH_1: begin
+        state = SH_2;
+        lb_memory_address = aluResult[1:0];
+      end
+      SH_2: state = SH_3;
+      SH_3: begin
+        state = FETCH;
+        pc = pc + 4;
+      end
+
       LUI_1: begin
         state = FETCH;
       end
@@ -532,9 +557,9 @@ always @(*) begin
       reg_we = 1;
       case (lb_memory_address)
         2'b00: reg_in = {{24{data_in_reg[7]}}, data_in_reg[7:0]};
-        2'b01: reg_in = {{24{data_in_reg[7]}}, data_in_reg[15:7]};
-        2'b10: reg_in = {{24{data_in_reg[7]}}, data_in_reg[23:16]};
-        2'b11: reg_in = {{24{data_in_reg[7]}}, data_in_reg[31:24]};
+        2'b01: reg_in = {{24{data_in_reg[15]}}, data_in_reg[15:7]};
+        2'b10: reg_in = {{24{data_in_reg[23]}}, data_in_reg[23:16]};
+        2'b11: reg_in = {{24{data_in_reg[31]}}, data_in_reg[31:24]};
       endcase
     end
     LBU_3: begin
@@ -551,17 +576,17 @@ always @(*) begin
       reg_dest = lb_rd;
       reg_we = 1;
       if(lb_memory_address[1] == 1'b0)
-        reg_in = {{16{data_in_reg[7]}}, data_in_reg[15:0]};
+        reg_in = {{16{data_in_reg[15]}}, data_in_reg[15:0]};
       else
-        reg_in = {{16{data_in_reg[7]}}, data_in_reg[31:16]};
+        reg_in = {{16{data_in_reg[31]}}, data_in_reg[31:16]};
     end
     LHU_3: begin
       reg_dest = lb_rd;
       reg_we = 1;
       if(lb_memory_address[1] == 1'b0)
-        reg_in = data_in_reg[15:0];
+        reg_in = {16'b0000000000000000, data_in_reg[15:0]};
       else
-        reg_in = data_in_reg[31:16];
+        reg_in = {16'b0000000000000000, data_in_reg[31:16]};
     end
 
     LUI_1: begin
@@ -584,6 +609,45 @@ always @(*) begin
     SW_3: begin
       
     end
+    SB_1: begin
+      aux = reg_out_2[7:0];
+      srcA = immS;
+      srcB = reg_out_1;
+      aluControl = ALU_ADD; // aluResult = immS + rs1
+    end
+    SB_2: begin
+      case(lb_memory_address)
+        2'b00: data_out = {data_out[31:8],aux[7:0]};
+        2'b01: data_out = {data_out[31:16], aux[7:0], data_out[7:0]};
+        2'b10: data_out = {data_out[31:24],aux[7:0], data_out[16:0] };
+        2'b11: data_out = {aux[7:0], data_out[23:0]};
+      endcase
+      data_out = reg_out_2[];
+      address = aluResult;
+      we = 1;// mem[aluResult] = rs2
+    end
+    SB_3: begin
+      
+    end
+
+    SH_1: begin
+      aux = reg_out_2[7:0];
+      srcA = immS;
+      srcB = reg_out_1;
+      aluControl = ALU_ADD;
+    end
+    SH_2: begin
+      if(lb_memory_address)
+        data_out = {data_out[31:15], aux};
+      else
+        data_out = {aux, data_out[15:0]};
+      address = aluResult;
+      we = 1;
+    end
+    SH_3: begin
+      
+    end
+
     // ===== BNE =====
     BNE_1: begin
       srcA = reg_out_1;
