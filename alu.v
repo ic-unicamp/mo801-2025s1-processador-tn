@@ -1,28 +1,26 @@
 // ===== ALU =====
 module ALU(
-  input [3:0] aluControl,
+  input [4:0] aluControl,
   input [31:0] srcA, 
   input [31:0] srcB,
   output reg [31:0] aluResult
 );
 
 // ===== constantes de aluControl =====
-parameter ADD = 4'b0000;
-parameter SUB = 4'b0001;
-parameter AND = 4'b0010;
-parameter RA  = 4'b0011;
-parameter OR  = 4'b0100;
-parameter RSS = 4'b0101;
-parameter XOR = 4'b0110;
-parameter LS  = 4'b0111;
-parameter RS  = 4'b1000;
-parameter EQ  = 4'b1001;
-parameter NEQ = 4'b1010;
-parameter LT  = 4'b1011;
-parameter LTS = 4'b1100;
-parameter LTE = 4'b1101;
-parameter GT  = 4'b1110;
-parameter GTE = 4'b1111;
+parameter ADD = 5'b00000;
+parameter SUB = 5'b00001;
+parameter AND = 5'b00010;
+parameter RA  = 5'b00011;
+parameter OR  = 5'b00100;
+parameter XOR = 5'b00101;
+parameter LS  = 5'b00110;
+parameter RS  = 5'b00111;
+parameter EQ  = 5'b01001;
+parameter NEQ = 5'b01010;
+parameter LT  = 5'b01011;
+parameter LTS = 5'b01101;
+parameter GE  = 5'b01111;
+parameter GES = 5'b10000; //  TODO - REMOVER NÃO USADOS
 
 reg print_alu_resp = 1'b1;
 
@@ -31,6 +29,7 @@ always @(*) begin
     ADD: aluResult = srcA +  srcB; // Soma
     SUB: aluResult = srcA -  srcB; // Subtração
     AND: aluResult = srcA &  srcB;
+    RA : aluResult = $signed(srcA) << srcB;// TODO TERMINAR ISSO
     OR : aluResult = srcA |  srcB;
     XOR: aluResult = srcA ^  srcB;
     LS : aluResult = srcA << srcB;
@@ -41,8 +40,8 @@ always @(*) begin
     LTE: aluResult = srcA <= srcB;
     GT : aluResult = srcA >  srcB;
     GTE: aluResult = srcA >= srcB;
-    LTS: aluResult = $signed(srcA) << srcB;
-    RSS: aluResult = $signed(srcA) >> srcB;
+    LTS: aluResult = $signed(srcA) < $signed(srcB);
+    GTS: aluResult = $signed(srcA) > $signed(srcB); // TODO FALTANDO ESPAÇO
     
     default: aluResult = 32'h00000000; // Operação inválida
   endcase

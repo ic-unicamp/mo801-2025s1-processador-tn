@@ -10,7 +10,7 @@ module core( // modulo de um core
 // ===== Variáveis da alu =====
 wire [31:0] alu_true_result;
 reg [31:0] aluResult;
-reg [3:0] aluControl;
+reg [4:0] aluControl;
 reg [31:0] srcA, srcB;
 
 // ===== Instância da ALU =====
@@ -126,22 +126,23 @@ parameter JALR     = 7'b1100111;
 
 // ===== Constantes de controle da alu =====
 
-parameter ALU_ADD = 4'b0000;
-parameter ALU_SUB = 4'b0001;
-parameter ALU_AND = 4'b0010;
-parameter ALU_RA  = 4'b0011;
-parameter ALU_OR  = 4'b0100;
-parameter ALU_RSS = 4'b0101;
-parameter ALU_XOR = 4'b0110;
-parameter ALU_LS  = 4'b0111;
-parameter ALU_RS  = 4'b1000;
-parameter ALU_EQ  = 4'b1001;
-parameter ALU_NEQ = 4'b1010;
-parameter ALU_LT  = 4'b1011;
-parameter ALU_LTS = 4'b1100;
-parameter ALU_LTE = 4'b1101;
-parameter ALU_GT  = 4'b1110;
-parameter ALU_GTE = 4'b1111;
+parameter ALU_ADD = 5'b00000;
+parameter ALU_SUB = 5'b00001;
+parameter ALU_AND = 5'b00010;
+parameter ALU_RA  = 5'b00011;
+parameter ALU_OR  = 5'b00100;
+parameter ALU_XOR = 5'b00101;
+parameter ALU_LS  = 5'b00110;
+parameter ALU_RS  = 5'b00111;
+parameter ALU_GTS = 5'b01000;
+parameter ALU_EQ  = 5'b01001;
+parameter ALU_NEQ = 5'b01010;
+parameter ALU_LT  = 5'b01011;
+parameter ALU_LTE = 5'b01100;
+parameter ALU_LTS = 5'b01101;
+parameter ALU_GT  = 5'b01110;
+parameter ALU_GTE = 5'b01111;
+parameter ALU_GTS = 5'b10000;
 
 // ===== wires =====
 wire [6:0] opcode; // guarda a opção 
@@ -178,14 +179,15 @@ assign offset = data_in_reg[31:20];
 
 // ===== Temporários =====
 reg [31:0] pc = 0;
-reg [4:0] lw_rd_reg;
+reg [4:0]  lw_rd_reg;
 reg [31:0] data_in_reg = 31'b00000000;
-reg [1:0] lb_memory_address = 2'b00;
-reg [4:0] lb_rd;
+reg [1:0]  lb_memory_address = 2'b00;
+reg [16:0] aux_sb;
+reg [31:0] sb_address;
 // ===== DEBUG VARIABLES =====
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
 reg print_decode = 1'b0;
-reg print_pc     = 1'b0;
+reg print_pc     = 1'b1;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
@@ -207,7 +209,7 @@ always @(posedge clk) begin
       FETCH: state = DECODE;
       DECODE: begin // ler decodifica a instrução
         if(print_pc)
-          $display("PC: %b", pc);
+          $display("PC: %b %d", pc, pc);
         if(print_decode)
           $display("decoding instruction %b (%d) address: %d", opcode, opcode, address);
         case(opcode)
@@ -241,24 +243,32 @@ always @(posedge clk) begin
               3'b111: state =  AND_1;
             endcase
           end
-
-          SW: state = SW_1;
-          LUI: state   = LUI_1;
-          BEQ_BNE: 
-            if(data_in[12]) state = BNE_1;
-            else state = BEQ_1;
-          JAL: state   = JAL_1;
-          JALR:state   = JALR_1;
-
-          LW:
-            case (data_in[14:12])
+          LW: case (data_in[14:12])
               3'b000: state = LB_1;
               3'b001: state = LH_1;
               3'b010: state = LW_1;
               3'b100: state = LBU_1;
               3'b101: state = LHU_1;
-
             endcase
+          SW: case (data_in[14:12])
+              3'b000: state = SB_1;
+              3'b001: state = SH_1;
+              3'b010: state = SW_1;
+            endcase
+          LUI: state   = LUI_1;
+          BEQ_BNE: 
+          case(data_in[14:12])
+            3'b000: state = BEQ_1;
+            3'b001: state = BNE_1;
+            3'b100: state = BLT_1;
+            3'b101: state = BGE_1;
+            3'b110: state = BLTU_1;
+            3'b111: state = BGEU_1;
+
+          endcase
+          JAL: state   = JAL_1;
+          JALR:state   = JALR_1;
+
           AUIPC: state = AUIPC_1;
           default: begin
             $display("ERROR: NOT SUPPORTED INSTRUCTION");
@@ -300,7 +310,7 @@ always @(posedge clk) begin
 
       LB_1: begin
         state = LB_2;
-        lb_rd = rd;
+        lw_rd_reg = rd;
       end
       LB_2: state = LB_3;
       LB_3: begin
@@ -309,7 +319,7 @@ always @(posedge clk) begin
       end
       LH_1: begin
         state = LH_2;
-        lb_rd = rd;
+        lw_rd_reg = rd;
       end
       LH_2: state = LH_3;
       LH_3: begin
@@ -318,7 +328,7 @@ always @(posedge clk) begin
       end
       LBU_1: begin
         state = LBU_2;
-        lb_rd = rd;
+        lw_rd_reg = rd;
       end
       LBU_2: state = LBU_3;
       LBU_3: begin
@@ -327,7 +337,7 @@ always @(posedge clk) begin
       end
       LHU_1: begin
         state = LHU_2;
-        lb_rd = rd;
+        lw_rd_reg = rd;
       end
       LHU_2: state = LHU_3;
       LHU_3: begin
@@ -346,7 +356,7 @@ always @(posedge clk) begin
 
       SB_1: begin
         state = SB_2;
-        lb_memory_address = aluResult[1:0];
+        lb_memory_address = aluResult;
       end
       SB_2: state = SB_3;
       SB_3: begin
@@ -355,7 +365,7 @@ always @(posedge clk) begin
       end
       SH_1: begin
         state = SH_2;
-        lb_memory_address = aluResult[1:0];
+        lb_memory_address = aluResult;
       end
       SH_2: state = SH_3;
       SH_3: begin
@@ -553,7 +563,7 @@ always @(*) begin
       lb_memory_address = aluResult[1:0];
     end
     LB_3: begin
-      reg_dest = lb_rd;
+      reg_dest = lw_rd_reg;
       reg_we = 1;
       case (lb_memory_address)
         2'b00: reg_in = {{24{data_in_reg[7]}}, data_in_reg[7:0]};
@@ -563,7 +573,7 @@ always @(*) begin
       endcase
     end
     LBU_3: begin
-      reg_dest = lb_rd;
+      reg_dest = lw_rd_reg;
       reg_we = 1;
       case (lb_memory_address)
         2'b00: reg_in = data_in_reg[7:0];
@@ -573,7 +583,7 @@ always @(*) begin
       endcase
     end
     LH_3: begin
-      reg_dest = lb_rd;
+      reg_dest = lw_rd_reg;
       reg_we = 1;
       if(lb_memory_address[1] == 1'b0)
         reg_in = {{16{data_in_reg[15]}}, data_in_reg[15:0]};
@@ -581,7 +591,7 @@ always @(*) begin
         reg_in = {{16{data_in_reg[31]}}, data_in_reg[31:16]};
     end
     LHU_3: begin
-      reg_dest = lb_rd;
+      reg_dest = lw_rd_reg;
       reg_we = 1;
       if(lb_memory_address[1] == 1'b0)
         reg_in = {16'b0000000000000000, data_in_reg[15:0]};
@@ -610,42 +620,43 @@ always @(*) begin
       
     end
     SB_1: begin
-      aux = reg_out_2[7:0];
+      aux_sb = reg_out_2[7:0];
       srcA = immS;
       srcB = reg_out_1;
       aluControl = ALU_ADD; // aluResult = immS + rs1
     end
     SB_2: begin
-      case(lb_memory_address)
-        2'b00: data_out = {data_out[31:8],aux[7:0]};
-        2'b01: data_out = {data_out[31:16], aux[7:0], data_out[7:0]};
-        2'b10: data_out = {data_out[31:24],aux[7:0], data_out[16:0] };
-        2'b11: data_out = {aux[7:0], data_out[23:0]};
-      endcase
-      data_out = reg_out_2[];
       address = aluResult;
-      we = 1;// mem[aluResult] = rs2
+      sb_address = aluResult;
     end
     SB_3: begin
-      
+      address = sb_address;
+      case(lb_memory_address)
+        2'b00: data_out = {data_in_reg[31:8],aux_sb[7:0]};
+        2'b01: data_out = {data_in_reg[31:16], aux_sb[7:0], data_in_reg[7:0]};
+        2'b10: data_out = {data_in_reg[31:24],aux_sb[7:0], data_in_reg[16:0] };
+        2'b11: data_out = {aux_sb[7:0], data_in_reg[23:0]};
+      endcase
+      we = 1;
     end
 
     SH_1: begin
-      aux = reg_out_2[7:0];
+      aux_sb = reg_out_2[15:0];
       srcA = immS;
       srcB = reg_out_1;
       aluControl = ALU_ADD;
     end
     SH_2: begin
-      if(lb_memory_address)
-        data_out = {data_out[31:15], aux};
-      else
-        data_out = {aux, data_out[15:0]};
       address = aluResult;
-      we = 1;
+      sb_address = aluResult;
     end
     SH_3: begin
-      
+      address = sb_address;
+      if(lb_memory_address[1] == 1'b0)
+        data_out = {data_in_reg[31:15], aux_sb};
+      else
+        data_out = {aux_sb, data_in_reg[15:0]};
+      we = 1;
     end
 
     // ===== BNE =====
