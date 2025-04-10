@@ -8,7 +8,7 @@ module RegisterFile(
     output reg [31:0] data_out1,
     output reg [31:0] data_out2
 );
-parameter print_reg_write = 1'b1;
+parameter print_reg_write = 1'b0;
 
 reg [31:0] registradores[0:31];
 always @(posedge clk)

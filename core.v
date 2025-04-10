@@ -172,6 +172,8 @@ wire [31:0]  immJAL;
 assign immJAL = {{12{data_in_reg[31]}}, data_in_reg[19:12], data_in_reg[20], data_in_reg[30:21], 1'b0};
 wire [31:0] immLUI;
 assign immLUI = {{data_in_reg[31:12]}, 12'b000000000000};
+wire [31:0] immAUIPC;
+assign immAUIPC = {{data_in_reg[31:12]}, 12'b000000000000};
 wire [11:0] offset;
 assign offset = data_in_reg[31:20];
 
@@ -185,7 +187,7 @@ reg [31:0] sb_address;
 // ===== DEBUG VARIABLES =====
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
 reg print_decode = 1'b0;
-reg print_pc     = 1'b1;
+reg print_pc     = 1'b0;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
@@ -286,6 +288,7 @@ always @(posedge clk) begin
       ORI_1  : state = ALU_RESULT;
       XORI_1 : state = ALU_RESULT;
       ANDI_1 : state = ALU_RESULT;
+      AUIPC_1: state = ALU_RESULT;
 
       ADD_1:  state = ALU_RESULT;
       SUB_1:  state = ALU_RESULT;
@@ -493,6 +496,11 @@ always @(*) begin
       srcA = immADDI; //imm
       srcB = reg_out_1;
       aluControl = ALU_AND;
+    end
+    AUIPC_1: begin
+      srcA = immAUIPC; 
+      srcB = pc;
+      aluControl = ALU_ADD;
     end
 
     ADD_1: begin

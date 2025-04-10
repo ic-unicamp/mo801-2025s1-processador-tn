@@ -22,7 +22,7 @@ parameter LTS = 4'b1011;
 parameter GE  = 4'b1100;
 parameter GES = 4'b1101;
 
-reg print_alu_resp = 1'b1;
+reg print_alu_resp = 1'b0;
 
 always @(*) begin
   case(aluControl)
