@@ -188,6 +188,7 @@ reg [31:0] sb_address;
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
 reg print_decode = 1'b0;
 reg print_pc     = 1'b0;
+reg print_ebreak = 1'b0;
 
 always @(posedge clk) begin
   if (resetn == 1'b0) begin
@@ -271,7 +272,11 @@ always @(posedge clk) begin
 
           AUIPC: state = AUIPC_1;
 
-          SYS_CALL: $finish(); // ONLY IMPLEMENTED EBREAK
+          SYS_CALL: begin
+            if(print_ebreak)
+              $display("EBREAK REACHED");
+            $finish(); // ONLY IMPLEMENTED EBREAK
+          end
           default: begin
             $display("ERROR: NOT SUPPORTED INSTRUCTION");
             $finish;
@@ -384,10 +389,11 @@ always @(posedge clk) begin
 
       LUI_1: begin
         state = FETCH;
+        pc = pc + 4;
       end
 
       // ===== BRANCHS =====
-      BNE_1, BEQ_1, BLT_1, BGE_1: begin
+      BNE_1, BEQ_1, BLT_1, BGE_1, BLTU_1, BGEU_1: begin
         if(alu_true_result)begin
           state = BRANCH_RESULT_1;
         end else begin
@@ -402,11 +408,7 @@ always @(posedge clk) begin
 
       // ===== JAL =====
       JAL_1: begin
-        state = JAL_2;
-      end
-      JAL_2: begin
         pc = alu_true_result;
-
         state = FETCH;
       end
 
@@ -415,6 +417,7 @@ always @(posedge clk) begin
       end
       JALR_2: begin
         state = FETCH;
+        pc = alu_true_result;
       end
 
       default: begin
@@ -458,13 +461,13 @@ always @(*) begin
       aluControl = ALU_ADD;
     end
     SLLI_1: begin
-      srcA = immADDI; //imm
-      srcB = reg_out_1;
+      srcA = reg_out_1; //imm
+      srcB = immADDI;
       aluControl = ALU_LS;
     end
     SRLI_1: begin
-      srcA = immADDI; //imm
-      srcB = reg_out_1;
+      srcA = reg_out_1; //imm
+      srcB = immADDI;
       aluControl = ALU_RS;
     end
     XORI_1: begin
@@ -532,6 +535,7 @@ always @(*) begin
       srcA = reg_out_1;
       srcB = reg_out_2;
       aluControl = ALU_LS;
+      $display("trueResult:", alu_true_result);
     end
     SRL_1: begin
       srcA = reg_out_1;
@@ -731,9 +735,6 @@ always @(*) begin
       reg_in = pc;
       reg_dest = rd;
       reg_we = 1;
-      //registers[rd] = pc;
-    end
-    JAL_2: begin
     end
 
     JALR_1: begin
