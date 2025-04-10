@@ -80,7 +80,7 @@ parameter SLTU_1          = 8'b00100000;
 parameter SLLI_1          = 8'b00100001;
 parameter XORI_1          = 8'b00100010;
 parameter SLTI_1          = 8'b00100011;
-parameter SLTUI_1         = 8'b00100100;
+parameter SLTIU_1         = 8'b00100100;
 parameter SRLI_1          = 8'b00100101;
 parameter ORI_1           = 8'b00100110;
 parameter ANDI_1          = 8'b00100111;
@@ -215,9 +215,9 @@ always @(posedge clk) begin
             case (data_in[14:12])
               3'b000: state =  ADDI_1;
               3'b001: state =  SLLI_1;
-              3'b100: state =  XORI_1;
               3'b010: state =  SLTI_1;
-              3'b010: state = SLTUI_1;
+              3'b011: state = SLTIU_1;
+              3'b100: state =  XORI_1;
               3'b101: 
                 if(data_in[30] == 0) state =  SRLI_1;
                 else state =  SRAI_1;
@@ -275,7 +275,15 @@ always @(posedge clk) begin
       end
 
       // ===== Add/Sub =====
-      ADDI_1: state = ALU_RESULT;
+      ADDI_1 : state = ALU_RESULT;
+      SRAI_1 : state = ALU_RESULT;
+      SLTI_1 : state = ALU_RESULT;
+      SLTIU_1: state = ALU_RESULT;
+      SLLI_1 : state = ALU_RESULT;
+      ORI_1  : state = ALU_RESULT;
+      XORI_1 : state = ALU_RESULT;
+      ANDI_1 : state = ALU_RESULT;
+
       ADD_1:  state = ALU_RESULT;
       SUB_1:  state = ALU_RESULT;
       AND_1:  state = ALU_RESULT;
@@ -286,7 +294,6 @@ always @(posedge clk) begin
       SLT_1:  state = ALU_RESULT;
       SLTU_1: state = ALU_RESULT;
       SRA_1:  state = ALU_RESULT;
-      SRAI_1: state = ALU_RESULT;
 
 
       ALU_RESULT: begin
@@ -470,7 +477,7 @@ always @(*) begin
       srcB = reg_out_1;
       aluControl = ALU_LTS;
     end
-    SLTU_1: begin
+    SLTIU_1: begin
       srcA = immADDI; //imm
       srcB = reg_out_1;
       aluControl = ALU_LT;
@@ -479,6 +486,11 @@ always @(*) begin
       srcA = reg_out_1; //imm
       srcB = shamt;
       aluControl = ALU_RA;
+    end
+    ANDI_1: begin
+      srcA = immADDI; //imm
+      srcB = reg_out_1;
+      aluControl = ALU_AND;
     end
 
     ADD_1: begin
@@ -520,6 +532,11 @@ always @(*) begin
       srcA = reg_out_1;
       srcB = reg_out_2;
       aluControl = ALU_LTS;
+    end
+    SLTU_1: begin
+      srcA = reg_out_1; //imm
+      srcB = reg_out_1;
+      aluControl = ALU_LT;
     end
     SRA_1: begin
       srcA = reg_out_1;
