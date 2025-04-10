@@ -123,6 +123,7 @@ parameter LUI      = 7'b0110111;
 parameter AUIPC    = 7'b0010111;
 parameter SLT      = 7'b0110011;
 parameter JALR     = 7'b1100111;
+parameter SYS_CALL = 7'b1110011;
 
 // ===== Constantes de controle da alu =====
 
@@ -267,6 +268,8 @@ always @(posedge clk) begin
           JALR:state   = JALR_1;
 
           AUIPC: state = AUIPC_1;
+
+          SYS_CALL: $finish(); // ONLY IMPLEMENTED EBREAK
           default: begin
             $display("ERROR: NOT SUPPORTED INSTRUCTION");
             $finish;
@@ -294,7 +297,6 @@ always @(posedge clk) begin
       SLT_1:  state = ALU_RESULT;
       SLTU_1: state = ALU_RESULT;
       SRA_1:  state = ALU_RESULT;
-
 
       ALU_RESULT: begin
         state = FETCH;
