@@ -10,7 +10,7 @@ module core( // modulo de um core
 // ===== Variáveis da alu =====
 wire [31:0] alu_true_result;
 reg [31:0] aluResult;
-reg [4:0] aluControl;
+reg [3:0] aluControl;
 reg [31:0] srcA, srcB;
 
 // ===== Instância da ALU =====
@@ -64,8 +64,6 @@ parameter SW_3            = 8'b00001100;
 parameter BNE_1           = 8'b00001101;
 parameter BEQ_1           = 8'b00001110;
 parameter BLT_1           = 8'b00001111;
-parameter BLE_1           = 8'b00010000;
-parameter BGT_1           = 8'b00010001;
 parameter BGE_1           = 8'b00010010;
 parameter BRANCH_RESULT_1 = 8'b00010011;
 parameter AND_1           = 8'b00010101;
@@ -108,6 +106,8 @@ parameter SB_3            = 8'b00111010;
 parameter SH_1            = 8'b00111011;
 parameter SH_2            = 8'b00111100;
 parameter SH_3            = 8'b00111101;
+parameter BLTU_1          = 8'b00111110;
+parameter BGEU_1          = 8'b00111111;
 
 
 // ===== Constantes de opcode =====
@@ -126,23 +126,20 @@ parameter JALR     = 7'b1100111;
 
 // ===== Constantes de controle da alu =====
 
-parameter ALU_ADD = 5'b00000;
-parameter ALU_SUB = 5'b00001;
-parameter ALU_AND = 5'b00010;
-parameter ALU_RA  = 5'b00011;
-parameter ALU_OR  = 5'b00100;
-parameter ALU_XOR = 5'b00101;
-parameter ALU_LS  = 5'b00110;
-parameter ALU_RS  = 5'b00111;
-parameter ALU_GTS = 5'b01000;
-parameter ALU_EQ  = 5'b01001;
-parameter ALU_NEQ = 5'b01010;
-parameter ALU_LT  = 5'b01011;
-parameter ALU_LTE = 5'b01100;
-parameter ALU_LTS = 5'b01101;
-parameter ALU_GT  = 5'b01110;
-parameter ALU_GTE = 5'b01111;
-parameter ALU_GTS = 5'b10000;
+parameter ALU_ADD = 4'b0000;
+parameter ALU_SUB = 4'b0001;
+parameter ALU_AND = 4'b0010;
+parameter ALU_RA  = 4'b0011;
+parameter ALU_OR  = 4'b0100;
+parameter ALU_XOR = 4'b0101;
+parameter ALU_LS  = 4'b0110;
+parameter ALU_RS  = 4'b0111;
+parameter ALU_EQ  = 4'b1000;
+parameter ALU_NEQ = 4'b1001;
+parameter ALU_LT  = 4'b1010;
+parameter ALU_LTS = 4'b1011;
+parameter ALU_GE  = 4'b1100;
+parameter ALU_GES = 4'b1101;
 
 // ===== wires =====
 wire [6:0] opcode; // guarda a opção 
@@ -378,7 +375,7 @@ always @(posedge clk) begin
       end
 
       // ===== BRANCHS =====
-      BNE_1, BEQ_1, BLT_1, BLE_1, BGT_1, BGE_1: begin
+      BNE_1, BEQ_1, BLT_1, BGE_1: begin
         if(alu_true_result)begin
           state = BRANCH_RESULT_1;
         end else begin
@@ -675,25 +672,23 @@ always @(*) begin
     BLT_1: begin
       srcA = reg_out_1;
       srcB = reg_out_2;
-      aluControl = ALU_LT;
-    end
-    // ===== BLE =====
-    BLE_1: begin
-      srcA = reg_out_1;
-      srcB = reg_out_2;
-      aluControl = ALU_LTE;
-    end
-    // ===== BRT =====
-    BGT_1: begin
-      srcA = reg_out_1;
-      srcB = reg_out_2;
-      aluControl = ALU_GT;
+      aluControl = ALU_LTS;
     end
     // ===== BRE =====
     BGE_1: begin
       srcA = reg_out_1;
       srcB = reg_out_2;
-      aluControl = ALU_GTE;
+      aluControl = ALU_GES;
+    end
+    BLTU_1: begin
+      srcA = reg_out_1;
+      srcB = reg_out_2;
+      aluControl = ALU_LT;
+    end
+    BGEU_1: begin
+      srcA = reg_out_1;
+      srcB = reg_out_2;
+      aluControl = ALU_GE;
     end
     BRANCH_RESULT_1: begin
       srcA = pc;
