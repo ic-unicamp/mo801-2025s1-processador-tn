@@ -187,7 +187,7 @@ reg [31:0] sb_address;
 // ===== DEBUG VARIABLES =====
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
 reg print_decode = 1'b0;
-reg print_pc     = 1'b0;
+reg print_pc     = 1'b1;
 reg print_ebreak = 1'b0;
 
 always @(posedge clk) begin
@@ -748,7 +748,8 @@ always @(*) begin
       reg_dest = rd;
       reg_we = 1;
       srcA = offset;
-      srcB = pc;
+      srcB = reg_out_1;
+      aluControl = ALU_ADD;
     end
   endcase
 end
