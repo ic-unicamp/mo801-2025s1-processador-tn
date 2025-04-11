@@ -187,7 +187,7 @@ reg [31:0] sb_address;
 // ===== DEBUG VARIABLES =====
 reg print_state  = 1'b0; // variável para saber se deveria-se printar o estado
 reg print_decode = 1'b0;
-reg print_pc     = 1'b1;
+reg print_pc     = 1'b0;
 reg print_ebreak = 1'b0;
 
 always @(posedge clk) begin
@@ -236,7 +236,7 @@ always @(posedge clk) begin
               3'b001: state =  SLL_1;
               3'b100: state =  XOR_1;
               3'b010: state =  SLT_1;
-              3'b010: state = SLTU_1;
+              3'b011: state = SLTU_1;
               3'b101: 
                 if(data_in[30] == 0) state =  SRL_1;
                 else state =  SRA_1;
@@ -290,6 +290,7 @@ always @(posedge clk) begin
       SLTI_1 : state = ALU_RESULT;
       SLTIU_1: state = ALU_RESULT;
       SLLI_1 : state = ALU_RESULT;
+      SRLI_1 : state = ALU_RESULT;
       ORI_1  : state = ALU_RESULT;
       XORI_1 : state = ALU_RESULT;
       ANDI_1 : state = ALU_RESULT;
@@ -549,7 +550,7 @@ always @(*) begin
     end
     SLTU_1: begin
       srcA = reg_out_1; //imm
-      srcB = reg_out_1;
+      srcB = reg_out_2;
       aluControl = ALU_LT;
     end
     SRA_1: begin
