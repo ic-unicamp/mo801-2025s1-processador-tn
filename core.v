@@ -202,7 +202,7 @@ always @(posedge clk) begin
     aluResult   = alu_true_result;
 
     if (print_state) begin //printa o estado
-      $display("State: %b", state);
+      $display("=== State: %b", state);
     end
 
     // ===== Unidade de controle =====
@@ -210,9 +210,10 @@ always @(posedge clk) begin
       FETCH: state = DECODE;
       DECODE: begin // ler decodifica a instrução
         if(print_pc)
-          $display("PC: %b %d", pc, pc);
-        if(print_decode)
-          $display("decoding instruction %b (%d) address: %d", opcode, opcode, address);
+          $display("=== PC: %b %d %d", pc, pc, pc/4);
+        if(print_decode) begin
+          $display("=== decoding instruction %b (%d) address: %d", opcode, opcode, address);
+        end
         case(opcode)
           NOP:  state = FETCH;
           ADDI:
@@ -274,11 +275,11 @@ always @(posedge clk) begin
 
           SYS_CALL: begin
             if(print_ebreak)
-              $display("EBREAK REACHED");
+              $display("=== EBREAK REACHED");
             $finish(); // ONLY IMPLEMENTED EBREAK
           end
           default: begin
-            $display("ERROR: NOT SUPPORTED INSTRUCTION");
+            $display("=== ERROR: NOT SUPPORTED INSTRUCTION");
             $finish;
           end
         endcase
@@ -424,7 +425,7 @@ always @(posedge clk) begin
       default: begin
         // Estado inválido (nunca deve acontecer)
         state = FETCH;
-        $display("ERROR: DEFAULT CORE STATE REACHED");
+        $display("=== ERROR: DEFAULT CORE STATE REACHED");
         $finish;
       end
     endcase
@@ -536,7 +537,6 @@ always @(*) begin
       srcA = reg_out_1;
       srcB = reg_out_2;
       aluControl = ALU_LS;
-      $display("trueResult:", alu_true_result);
     end
     SRL_1: begin
       srcA = reg_out_1;

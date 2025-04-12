@@ -44,7 +44,7 @@ always @(*) begin
     default: aluResult = 32'h00000000; // Operação inválida
   endcase
   if(print_alu_resp)
-    $display("ALU: %d(srcA) %h %d(srcB) = %d(aluResult)", $signed(srcA), aluControl, $signed(srcB), $signed(aluResult));
+    $display("=== ALU: %d(srcA) %h %d(srcB) = %d(aluResult)", $signed(srcA), aluControl, $signed(srcB), $signed(aluResult));
 
 end
 

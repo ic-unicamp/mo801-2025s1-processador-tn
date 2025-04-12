@@ -18,7 +18,7 @@ begin
         registradores[w] <= data_in;
     end
     if(print_reg_write && we)
-      $display("r[%d] = %d", w, data_in);
+      $display("=== r[%d] = %d", w, data_in);
     data_out1 = registradores[r1];
     data_out2 = registradores[r2];
 end
