@@ -401,7 +401,7 @@ always @(posedge clk) begin
           state = BRANCH_RESULT_1;
         end else begin
           state = FETCH;
-          pc    = pc + 4;
+          pc    = next_pc;
         end
       end
       BRANCH_RESULT_1: begin
