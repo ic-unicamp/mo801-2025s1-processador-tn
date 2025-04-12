@@ -311,7 +311,7 @@ always @(posedge clk) begin
 
       ALU_RESULT: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
       // ===== LW =====
@@ -322,7 +322,7 @@ always @(posedge clk) begin
       end
       LW_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
       LB_1: begin
@@ -332,7 +332,7 @@ always @(posedge clk) begin
       LB_2: state = LB_3;
       LB_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
       LH_1: begin
         state = LH_2;
@@ -341,7 +341,7 @@ always @(posedge clk) begin
       LH_2: state = LH_3;
       LH_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
       LBU_1: begin
         state = LBU_2;
@@ -350,7 +350,7 @@ always @(posedge clk) begin
       LBU_2: state = LBU_3;
       LBU_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
       LHU_1: begin
         state = LHU_2;
@@ -359,7 +359,7 @@ always @(posedge clk) begin
       LHU_2: state = LHU_3;
       LHU_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
 
@@ -368,7 +368,7 @@ always @(posedge clk) begin
       SW_2: state = SW_3;
       SW_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
       SB_1: begin
@@ -378,7 +378,7 @@ always @(posedge clk) begin
       SB_2: state = SB_3;
       SB_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
       SH_1: begin
         state = SH_2;
@@ -387,12 +387,12 @@ always @(posedge clk) begin
       SH_2: state = SH_3;
       SH_3: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
       LUI_1: begin
         state = FETCH;
-        pc = pc + 4;
+        pc = next_pc;
       end
 
       // ===== BRANCHS =====
