@@ -179,6 +179,7 @@ assign offset = data_in_reg[31:20];
 
 // ===== Temporários =====
 reg [31:0] pc = 0;
+reg [31:0] next_pc = 4;
 reg [4:0]  lw_rd_reg;
 reg [31:0] data_in_reg = 31'b00000000;
 reg [1:0]  lb_memory_address = 2'b00;
@@ -437,7 +438,8 @@ always @(*) begin
   we         =  1'b0;
   reg_we     =  1'b0;
 
-  address    =  pc;
+  address    = pc;
+  next_pc    = pc + 4;
   data_out   = 32'h00000000;
 
   srcA       = 32'h00000000;
